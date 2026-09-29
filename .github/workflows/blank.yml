@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cold-ai-${{ github.ref }}
+  group: cold-ai-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -30,65 +30,64 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           test -f settings.gradle.kts
           test -f build.gradle.kts
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
+
           echo "Project structure is valid."
 
       # 3. Налаштування Java 17
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       # 4. Налаштування Android SDK
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
-      # 5. Прийняття ліцензій Android SDK
-      - name: Accept Android SDK licenses
-        shell: bash
-        run: |
-          yes | sdkmanager --licenses || true
-
-      # 6. Встановлення компонентів Android SDK
+      # 5. Встановлення Android SDK
       - name: Install Android SDK packages
         shell: bash
         run: |
           set -euo pipefail
+
           sdkmanager --install \
-            "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      # 7. Налаштування Gradle 8.9
+      # 6. Налаштування Gradle 8.9
       - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.9'
 
-      # 8. Перевірка середовища
+      # 7. Перевірка середовища
       - name: Check build environment
         shell: bash
         run: |
+          set -euo pipefail
           java -version
           gradle --version
-          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --list_installed
 
-      # 9. Збірка APK
+      # 8. Збірка APK
       - name: Build debug APK
         shell: bash
         run: |
           set -euo pipefail
           gradle --no-daemon assembleDebug
 
-      # 10. Перевірка APK
+      # 9. Перевірка APK
       - name: Verify APK
         shell: bash
         run: |
           set -euo pipefail
+
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
           if [[ ! -s "$APK" ]]; then
@@ -99,7 +98,7 @@ jobs:
           ls -lh "$APK"
           echo "APK successfully created."
 
-      # 11. Завантаження APK
+      # 10. Завантаження APK
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
