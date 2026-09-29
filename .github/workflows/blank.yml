@@ -21,20 +21,22 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # 1. Завантаження репозиторію
+      # 1. Завантаження проєкту
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # 2. Перевірка структури проєкту
       - name: Check project files
+        shell: bash
         run: |
+          set -e
           test -f settings.gradle.kts
           test -f build.gradle.kts
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
           echo "Project files found."
 
-      # 3. Налаштування Java
+      # 3. Налаштування Java 17
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -44,37 +46,37 @@ jobs:
       # 4. Налаштування Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platform-tools, platforms;android-35, build-tools;35.0.0'
 
-      # 5. Прийняття ліцензій Android SDK
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
-
-      # 6. Встановлення потрібних компонентів SDK
-      - name: Install Android SDK packages
-        run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-      # 7. Налаштування Gradle 8.9
-      - name: Set up Gradle
+      # 5. Налаштування Gradle 8.9
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      # 8. Збірка APK
+      # 6. Перевірка середовища
+      - name: Check build environment
+        run: |
+          java -version
+          gradle --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+      # 7. Збірка APK
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
-      # 9. Перевірка наявності APK
+      # 8. Перевірка APK
       - name: Verify APK
+        shell: bash
         run: |
+          set -e
           APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$APK"
+          test -s "$APK"
           ls -lh "$APK"
 
-      # 10. Збереження APK у GitHub Actions
+      # 9. Завантаження APK
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
